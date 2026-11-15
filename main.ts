@@ -14,7 +14,7 @@
 //
 // To play locally instead, run `node serve.ts` and open http://localhost:8080.
 
-import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-game.ts';
@@ -22,8 +22,23 @@ import { buildDossier } from './vendor/makefun-game.ts';
 const here = fileURLToPath(new URL('.', import.meta.url));
 const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
-// Start from a clean output directory so a stale file can never ride along.
-rmSync(out, { recursive: true, force: true });
+// Empty a directory's contents without removing the directory itself. The output
+// directory is a mount in the grader, so deleting it is refused; removing what it
+// holds instead still starts every run from a clean output, so a stale file can
+// never ride along.
+function emptyDir(dir: string): void {
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return; // nothing to empty: the directory does not exist yet
+  }
+  for (const name of names) {
+    rmSync(join(dir, name), { recursive: true, force: true });
+  }
+}
+
+emptyDir(out);
 mkdirSync(out, { recursive: true });
 cpSync(join(here, 'game'), join(out, 'game'), { recursive: true });
 mkdirSync(join(out, 'screenshots'), { recursive: true });
